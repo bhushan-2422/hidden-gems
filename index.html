@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hidden Gems — Discover Maharashtra</title>
+  <meta name="description" content="Authentic. Credible. Human. Discover hidden places in Maharashtra that most travelers never find.">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a1a1a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header" id="siteHeader">
+    <div class="header-inner">
+      <a href="#" class="brand" onclick="scrollToTop(event)">
+        <span class="brand-name">Hidden <em>Gems</em></span>
+      </a>
+      <nav class="main-nav" id="mainNav">
+        <a href="#discover" class="nav-link">Discover</a>
+        <a href="#cities" class="nav-link">Cities</a>
+        <a href="#feelings" class="nav-link">By Feeling</a>
+        <a href="#philosophy" class="nav-link">Philosophy</a>
+      </nav>
+      <div class="header-actions">
+        <button class="search-toggle" onclick="toggleSearch()" aria-label="Search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        </button>
+        <button class="menu-toggle" id="menuToggle" onclick="toggleMobileNav()" aria-label="Menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+    <!-- Search overlay -->
+    <div class="search-overlay" id="searchOverlay">
+      <div class="search-overlay-inner">
+        <input type="text" id="globalSearch" placeholder="Search destinations, districts, experiences..." oninput="handleGlobalSearch(this.value)">
+        <button class="search-close" onclick="toggleSearch()">✕</button>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <!-- Mobile nav -->
+    <div class="mobile-nav" id="mobileNav">
+      <a href="#discover" onclick="closeMobileNav()">Discover</a>
+      <a href="#cities" onclick="closeMobileNav()">Cities</a>
+      <a href="#feelings" onclick="closeMobileNav()">By Feeling</a>
+      <a href="#philosophy" onclick="closeMobileNav()">Philosophy</a>
+    </div>
+  </header>
+
+  <!-- Homepage Sections (shown/hidden by routing) -->
+  <div id="homeSections">
+
+  <!-- Hero Carousel -->
+  <section class="hero-carousel" id="heroCarousel">
+    <div class="carousel-track" id="carouselTrack"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <p class="hero-eyebrow">MAHARASHTRA, INDIA</p>
+      <h1 class="hero-title">There are places<br>in Maharashtra<br>you haven't discovered.</h1>
+      <p class="hero-subtitle">Authentic. Credible. Human.</p>
+    </div>
+    <div class="carousel-controls">
+      <button class="carousel-btn carousel-prev" onclick="prevSlide()" aria-label="Previous">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button class="carousel-btn carousel-next" onclick="nextSlide()" aria-label="Next">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+    <div class="carousel-progress">
+      <div class="carousel-progress-bar" id="carouselProgress"></div>
+    </div>
+    <div class="carousel-caption" id="carouselCaption"></div>
+  </section>
+
+  <!-- Why Hidden Gems / Authenticity -->
+  <section class="authenticity" id="authenticity">
+    <div class="container">
+      <div class="authenticity-grid">
+        <div class="authenticity-images">
+          <div class="auth-img auth-img-1" id="authImg1"></div>
+          <div class="auth-img auth-img-2" id="authImg2"></div>
+          <div class="auth-img auth-img-3" id="authImg3"></div>
+        </div>
+        <div class="authenticity-text">
+          <span class="section-label">Why Hidden Gems</span>
+          <h2 class="editorial-heading">Have you ever wanted to go somewhere but had no idea where?</h2>
+          <p class="editorial-body">
+            Google tends to surface what is already popular. The same recommendations. The same crowded destinations. Over and over again.
+          </p>
+          <p class="editorial-body">
+            Hidden Gems exists to help you discover what is <em>worth</em> discovering — places in Maharashtra that are genuinely remarkable but relatively unknown, overlooked, or known only locally.
+          </p>
+          <p class="editorial-body">
+            We grow slowly because we care about where the information comes from. Every place on this platform has been visited and documented by a real person. No fake reviews. No fabricated experiences. No shortcuts.
+          </p>
+          <div class="authenticity-phrase">
+            <span>Authentic.</span>
+            <span>Credible.</span>
+            <span>Human.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Discover by City / Region -->
+  <section class="cities-section" id="cities">
+    <div class="container">
+      <div class="section-header-row">
+        <div>
+          <span class="section-label">Explore Maharashtra</span>
+          <h2 class="section-heading">Discover by City</h2>
+        </div>
+        <div class="carousel-arrows">
+          <button class="arrow-btn" onclick="scrollCities(-1)" aria-label="Scroll left">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button class="arrow-btn" onclick="scrollCities(1)" aria-label="Scroll right">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="cities-scroll-wrapper">
+      <div class="cities-track" id="citiesTrack"></div>
+    </div>
+  </section>
+
+  <!-- Discover by Feeling / Tags -->
+  <section class="feelings-section" id="feelings">
+    <div class="container">
+      <span class="section-label">Experience Discovery</span>
+      <h2 class="section-heading">Find Your Kind of Escape</h2>
+      <p class="section-desc">Select what you're looking for. We'll show you places that match.</p>
+
+      <div class="tag-categories" id="tagCategories">
+        <div class="tag-category">
+          <h3 class="tag-cat-title">Nature</h3>
+          <div class="tag-list">
+            <button class="tag-btn" data-tag="waterfall" onclick="toggleTag(this)">Waterfalls</button>
+            <button class="tag-btn" data-tag="trekking" onclick="toggleTag(this)">Mountains</button>
+            <button class="tag-btn" data-tag="nature" onclick="toggleTag(this)">Forests</button>
+            <button class="tag-btn" data-tag="lake" onclick="toggleTag(this)">Lakes</button>
+            <button class="tag-btn" data-tag="wildlife" onclick="toggleTag(this)">Wildlife</button>
+          </div>
+        </div>
+        <div class="tag-category">
+          <h3 class="tag-cat-title">Adventure</h3>
+          <div class="tag-list">
+            <button class="tag-btn" data-tag="trekking" onclick="toggleTag(this)">Trekking</button>
+            <button class="tag-btn" data-tag="camping" onclick="toggleTag(this)">Camping</button>
+            <button class="tag-btn" data-tag="adventure" onclick="toggleTag(this)">Adventure</button>
+            <button class="tag-btn" data-tag="scenic drive" onclick="toggleTag(this)">Scenic Drives</button>
+          </div>
+        </div>
+        <div class="tag-category">
+          <h3 class="tag-cat-title">Culture & Heritage</h3>
+          <div class="tag-list">
+            <button class="tag-btn" data-tag="heritage" onclick="toggleTag(this)">Heritage</button>
+            <button class="tag-btn" data-tag="fort" onclick="toggleTag(this)">Forts</button>
+            <button class="tag-btn" data-tag="spiritual" onclick="toggleTag(this)">Spiritual</button>
+            <button class="tag-btn" data-tag="history" onclick="toggleTag(this)">History</button>
+            <button class="tag-btn" data-tag="offbeat" onclick="toggleTag(this)">Offbeat</button>
+          </div>
+        </div>
+        <div class="tag-category">
+          <h3 class="tag-cat-title">Coast & Local Life</h3>
+          <div class="tag-list">
+            <button class="tag-btn" data-tag="beach" onclick="toggleTag(this)">Beaches</button>
+            <button class="tag-btn" data-tag="quiet" onclick="toggleTag(this)">Quiet Places</button>
+            <button class="tag-btn" data-tag="coffee" onclick="toggleTag(this)">Coffee Country</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="discover-btn" id="discoverBtn" onclick="discoverByFeeling()" disabled>
+        <span>Discover Places</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      <div class="feeling-results" id="feelingResults"></div>
+    </div>
+  </section>
+
+  <!-- Human Experiences / Community -->
+  <section class="community-section" id="community">
+    <div class="container">
+      <div class="community-grid">
+        <div class="community-text">
+          <span class="section-label">Community</span>
+          <h2 class="editorial-heading">A place becomes more useful when people share what actually happened there.</h2>
+          <p class="editorial-body">
+            Hidden Gems grows through genuine human experiences. When you visit a place, you can share your story — why you went, what you found, what you ate, where you stayed, what surprised you.
+          </p>
+          <p class="editorial-body">
+            Not a rating. Not a star score. A real account of what it was like to be there.
+          </p>
+          <p class="editorial-body muted">
+            Community contributions are coming soon. We are building this carefully because authenticity cannot be rushed.
+          </p>
+        </div>
+        <div class="community-visual">
+          <div class="community-card">
+            <div class="community-card-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <h3>Your Experience</h3>
+            <p>Why did you visit? What did you discover?</p>
+          </div>
+          <div class="community-card">
+            <div class="community-card-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <h3>Your Photographs</h3>
+            <p>Show the place as you saw it.</p>
+          </div>
+          <div class="community-card">
+            <div class="community-card-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <h3>Practical Details</h3>
+            <p>Food, stays, transport — the things that help.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Events — Future Ready -->
+  <section class="events-section" id="events">
+    <div class="container">
+      <span class="section-label">Coming Soon</span>
+      <h2 class="section-heading">Events & Seasonal Experiences</h2>
+      <p class="section-desc">
+        Hidden places often have seasonal moments — local festivals, monsoon blooms, annual gatherings known primarily to locals. We are building the infrastructure to help you discover what is happening and when, not just where to go.
+      </p>
+      <div class="events-future-state">
+        <div class="events-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <p>Event discovery is under development.<br>Real seasonal and cultural events will appear here once verified.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Philosophy -->
+  <section class="philosophy-section" id="philosophy">
+    <div class="container">
+      <div class="philosophy-content">
+        <span class="section-label light">Our Philosophy</span>
+        <h2 class="philosophy-heading">We are not trying to become the biggest travel database.</h2>
+        <h2 class="philosophy-heading accent">We are trying to become a trustworthy one.</h2>
+        <p class="philosophy-body">
+          We would rather have 10 places that real people have experienced and can genuinely stand behind — than 10,000 places copied from somewhere else.
+        </p>
+        <p class="philosophy-body">
+          The database will grow slowly. That is intentional.
+        </p>
+        <div class="philosophy-statement">
+          <span>Authenticity takes time.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  </div><!-- /homeSections -->
+
+  <!-- Breadcrumb (shown on inner pages) -->
+  <div class="breadcrumb-bar" id="breadcrumbBar" style="display:none">
+    <div class="container">
+      <nav class="breadcrumb" id="breadcrumb"></nav>
+    </div>
+  </div>
+
+  <!-- ===== CITY PAGE ===== -->
+  <section class="page city-page" id="cityPage" style="display:none">
+    <div class="city-hero" id="cityHero">
+      <img id="cityHeroImg" src="" alt="">
+      <div class="city-hero-overlay"></div>
+      <div class="city-hero-content">
+        <span class="city-hero-eyebrow" id="cityEyebrow">MAHARASHTRA</span>
+        <h1 class="city-hero-title" id="cityTitle"></h1>
+        <p class="city-hero-subtitle" id="citySubtitle"></p>
+      </div>
+    </div>
+    <div class="container">
+      <div class="city-intro" id="cityIntro"></div>
+      <div class="city-gems-header">
+        <h2 class="section-heading" id="cityGemsTitle">Hidden Gems</h2>
+        <p class="section-desc" id="cityGemsDesc"></p>
+      </div>
+      <div class="city-tags-filter">
+        <span class="filter-label-text">Filter by:</span>
+        <div class="city-tag-list" id="cityTagList"></div>
+      </div>
+      <div class="city-gems-grid" id="cityGemsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== PLACE PAGE ===== -->
+  <section class="page place-page" id="placePage" style="display:none">
+    <div class="place-hero" id="placeHero">
+      <img id="placeHeroImg" src="" alt="">
+      <div class="place-hero-overlay"></div>
+      <div class="place-hero-content">
+        <span class="place-hero-category" id="placeCategory"></span>
+        <h1 class="place-hero-title" id="placeTitle"></h1>
+        <p class="place-hero-location" id="placeLocation"></p>
+      </div>
+    </div>
+
+    <!-- Gallery -->
+    <div class="place-gallery" id="placeGallery"></div>
+
+    <div class="container">
+      <div class="place-layout">
+        <div class="place-main">
+          <!-- Tags -->
+          <div class="place-tags" id="placeTags"></div>
+
+          <!-- Description -->
+          <div class="place-section">
+            <h2 class="place-section-title">About this place</h2>
+            <p class="place-text" id="placeDescription"></p>
+          </div>
+
+          <!-- Why Visit -->
+          <div class="place-section">
+            <h2 class="place-section-title">Why it's worth finding</h2>
+            <p class="place-text" id="placeWhyVisit"></p>
+          </div>
+
+          <!-- Our Experience -->
+          <div class="place-section" id="placeExperienceSection">
+            <h2 class="place-section-title">Our experience</h2>
+            <p class="place-text" id="placeExperience"></p>
+          </div>
+
+          <!-- Discovery Score -->
+          <div class="place-section">
+            <h2 class="place-section-title">Discovery Score</h2>
+            <div class="place-score-breakdown">
+              <div class="score-formula-display">
+                <code>hidden_gem_score = avg_rating ÷ log(review_count + 1)</code>
+              </div>
+              <div class="place-score-grid">
+                <div class="place-score-item">
+                  <span class="place-score-value" id="placeDetailRating"></span>
+                  <span class="place-score-label">Average Rating</span>
+                </div>
+                <div class="place-score-item">
+                  <span class="place-score-value" id="placeDetailReviews"></span>
+                  <span class="place-score-label">Review Count</span>
+                </div>
+                <div class="place-score-item">
+                  <span class="place-score-value" id="placeDetailRaw"></span>
+                  <span class="place-score-label">Raw Score</span>
+                </div>
+                <div class="place-score-item highlight">
+                  <span class="place-score-value" id="placeDetailNormalized"></span>
+                  <span class="place-score-label">Normalized (0–100)</span>
+                </div>
+              </div>
+              <p class="place-score-note">High rating with low visibility means a genuine hidden gem — a place travelers love but few have discovered yet.</p>
+            </div>
+          </div>
+
+          <!-- Map -->
+          <div class="place-section">
+            <h2 class="place-section-title">Location</h2>
+            <div class="place-map" id="placeMap"></div>
+            <a class="place-directions" id="placeDirections" href="#" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Get Directions on Google Maps
+            </a>
+          </div>
+
+          <!-- Events -->
+          <div class="place-section">
+            <h2 class="place-section-title">What's happening here</h2>
+            <div id="placeEvents">
+              <div class="place-empty-state">
+                <p>Local events will appear here as we document them.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Food & Stay -->
+          <div class="place-section">
+            <h2 class="place-section-title">Local food & stay</h2>
+            <div id="placeFoodStay">
+              <div class="place-empty-state">
+                <p>Verified local recommendations are being collected. Check back as our community grows.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Human Experiences -->
+          <div class="place-section">
+            <h2 class="place-section-title">People who've been there</h2>
+            <div id="placeExperiences">
+              <div class="place-empty-state">
+                <p>No community experiences yet. Be the first person to share what your visit was really like.</p>
+              </div>
+            </div>
+            <button class="contribute-btn" onclick="openExperienceForm()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Share your experience
+            </button>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="place-sidebar">
+          <div class="sidebar-card">
+            <h3>Practical Information</h3>
+            <div class="sidebar-info" id="placePractical"></div>
+          </div>
+          <div class="sidebar-card">
+            <h3>Discovery Score</h3>
+            <div class="sidebar-score">
+              <span class="sidebar-score-number" id="sidebarScore"></span>
+              <span class="sidebar-score-label">out of 100</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Related Places -->
+      <div class="place-related">
+        <h2 class="section-heading">More hidden gems nearby</h2>
+        <div class="related-grid" id="relatedGrid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAG RESULTS PAGE ===== -->
+  <section class="page tag-results-page" id="tagResultsPage" style="display:none">
+    <div class="container">
+      <div class="tag-results-header">
+        <h1 class="section-heading" id="tagResultsTitle"></h1>
+        <p class="section-desc" id="tagResultsDesc"></p>
+      </div>
+      <div class="tag-results-grid" id="tagResultsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== EXPERIENCE FORM MODAL ===== -->
+  <div class="modal-overlay" id="experienceModal">
+    <div class="modal experience-modal">
+      <button class="modal-close" onclick="closeExperienceForm()">✕</button>
+      <div class="experience-form-header">
+        <h2>Share your experience</h2>
+        <p>Your submission will be reviewed by our team before being published. We verify every contribution to maintain authenticity.</p>
+      </div>
+      <form class="experience-form" id="experienceForm" onsubmit="submitExperience(event)">
+        <input type="hidden" id="expPlaceName" value="">
+
+        <div class="form-group">
+          <label>When did you visit?</label>
+          <input type="text" id="expWhen" placeholder="e.g., January 2025, Monsoon 2024" required>
+        </div>
+
+        <div class="form-group">
+          <label>What made you visit this place?</label>
+          <textarea id="expWhy" rows="3" placeholder="What attracted you to this location?" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>How did you come across this place?</label>
+          <input type="text" id="expDiscovery" placeholder="e.g., Local friend, word of mouth, accident">
+        </div>
+
+        <div class="form-group">
+          <label>Tell us about your experience</label>
+          <textarea id="expExperience" rows="6" placeholder="What was it like to be there? What did you see, feel, discover?" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Where did you stay? <span class="optional">(optional)</span></label>
+          <input type="text" id="expStay" placeholder="Accommodation details">
+        </div>
+
+        <div class="form-group">
+          <label>What did you eat? <span class="optional">(optional)</span></label>
+          <input type="text" id="expFood" placeholder="Local food, restaurants, specialties">
+        </div>
+
+        <div class="form-group">
+          <label>Recommendations for other visitors? <span class="optional">(optional)</span></label>
+          <textarea id="expRecommendations" rows="3" placeholder="Anything others should know before visiting?"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Your name <span class="optional">(optional)</span></label>
+          <input type="text" id="expName" placeholder="How should we credit you?">
+        </div>
+
+        <div class="form-submit">
+          <button type="submit" class="submit-btn">Submit Experience</button>
+          <p class="form-note">Submissions are reviewed before publication. This typically takes 2–3 days.</p>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <span class="footer-logo">Hidden <em>Gems</em></span>
+          <p class="footer-tagline">Authentic. Credible. Human.</p>
+          <p class="footer-focus">Discovering hidden places across Maharashtra, India.</p>
+        </div>
+        <div class="footer-columns">
+          <div class="footer-col">
+            <h4>Explore</h4>
+            <a href="#cities">Cities & Regions</a>
+            <a href="#feelings">By Feeling</a>
+            <a href="#discover">All Destinations</a>
+          </div>
+          <div class="footer-col">
+            <h4>Platform</h4>
+            <a href="#community">Contribute</a>
+            <a href="#events">Events</a>
+            <a href="#philosophy">Philosophy</a>
+          </div>
+          <div class="footer-col">
+            <h4>About</h4>
+            <a href="#">Our Story</a>
+            <a href="#">How We Work</a>
+            <a href="#">Contact</a>
+          </div>
+          <div class="footer-col">
+            <h4>Legal</h4>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Use</a>
+            <a href="#">Image Credits</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 Hidden Gems. Built for Smart India Hackathon.</p>
+        <p class="footer-credit">Photographs sourced from public APIs for prototype purposes.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Offline Banner -->
+  <div id="offlineBanner" class="offline-banner" style="display:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+    <span>You are viewing offline data. Some images may not load.</span>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/csv.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
