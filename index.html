@@ -337,6 +337,12 @@
             <p class="place-text" id="placeWhyVisit"></p>
           </div>
 
+          <!-- Local Tip -->
+          <div class="place-section" style="display:none">
+            <h2 class="place-section-title">Local tip</h2>
+            <p class="place-text" id="placeLocalTip" style="background:var(--cream);padding:16px;border-left:3px solid var(--saffron);"></p>
+          </div>
+
           <!-- Our Experience -->
           <div class="place-section" id="placeExperienceSection">
             <h2 class="place-section-title">Our experience</h2>
@@ -373,13 +379,19 @@
           </div>
 
           <!-- Map -->
-          <div class="place-section">
+          <div class="place-section" id="placeMapSection">
             <h2 class="place-section-title">Location</h2>
             <div class="place-map" id="placeMap"></div>
             <a class="place-directions" id="placeDirections" href="#" target="_blank" rel="noopener">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
               Get Directions on Google Maps
             </a>
+          </div>
+
+          <!-- Safety Note -->
+          <div class="place-section" style="display:none">
+            <h2 class="place-section-title">Safety</h2>
+            <p class="place-text" id="placeSafetyNote" style="background:var(--cream);padding:16px;border-left:3px solid var(--ink-muted);"></p>
           </div>
 
           <!-- Events -->
@@ -429,6 +441,10 @@
               <span class="sidebar-score-number" id="sidebarScore"></span>
               <span class="sidebar-score-label">out of 100</span>
             </div>
+          </div>
+          <div class="sidebar-card">
+            <h3>Sources</h3>
+            <div id="placeSources" style="display:flex;flex-direction:column;gap:6px;"></div>
           </div>
         </div>
       </div>
@@ -549,16 +565,10 @@
       </div>
       <div class="footer-bottom">
         <p>&copy; 2026 Hidden Gems. Built for Smart India Hackathon.</p>
-        <p class="footer-credit">Photographs sourced from public APIs for prototype purposes.</p>
+        <p class="footer-credit">All photographs are locally sourced.</p>
       </div>
     </div>
   </footer>
-
-  <!-- Offline Banner -->
-  <div id="offlineBanner" class="offline-banner" style="display:none">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
-    <span>You are viewing offline data. Some images may not load.</span>
-  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="js/csv.js"></script>

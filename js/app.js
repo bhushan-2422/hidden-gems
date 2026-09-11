@@ -1,9 +1,10 @@
 /* ============================================
    Hidden Gems — Complete Application
-   Routing, City Pages, Place Pages, Experiences
+   Updated for new CSV format (50+ columns)
    ============================================ */
 
 let allSpots = [];
+let carouselSpots = [];
 let currentSlide = 0;
 let carouselTimer = null;
 let selectedTags = new Set();
@@ -13,31 +14,15 @@ let currentCity = null;
 let currentPlace = null;
 
 const CATEGORY_ICONS = {
-  'Heritage': 'Heritage', 'Nature': 'Nature', 'Hill Station': 'Hill Station',
-  'Beach': 'Beach', 'Wildlife': 'Wildlife', 'default': 'Destination'
+  'Culture': 'Culture', 'Heritage': 'Heritage', 'Nature': 'Nature',
+  'Adventure': 'Adventure', 'Food': 'Food', 'Spiritual': 'Spiritual',
+  'Unique Experience': 'Unique', 'default': 'Destination'
 };
 
-const TAG_LABELS = {
-  trekking: 'Trekking', waterfall: 'Waterfall', heritage: 'Heritage',
-  spiritual: 'Spiritual', offbeat: 'Offbeat', adventure: 'Adventure',
-  beach: 'Beach', wildlife: 'Wildlife', nature: 'Nature', camping: 'Camping',
-  hillstation: 'Hill Station', 'ancient trade route': 'Ancient Trade Route',
-  history: 'History', 'scenic drive': 'Scenic Drive', monsoon: 'Monsoon',
-  biodiversity: 'Biodiversity', ghat: 'Ghat', quiet: 'Quiet',
-  temple: 'Temple', fort: 'Fort', 'tiger reserve': 'Tiger Reserve',
-  lake: 'Lake', stargazing: 'Stargazing', 'tribal culture': 'Tribal Culture',
-  'sunset point': 'Sunset Point', coffee: 'Coffee', 'turtle festival': 'Turtle Festival'
-};
-
-const CITY_DESCRIPTIONS = {
-  'Pune': 'Beyond the city you know, the Pune district hides mountain passes, ancient trade routes, and fort trails that few travelers explore.',
-  'Ahmednagar': 'Ahmednagar district holds Maharashtra\'s highest peak, pristine lakes, and canyon valleys that remain largely undiscovered.',
-  'Ratnagiri': 'The Konkan coast of Ratnagiri hides serene beaches, turtle nesting sites, and quiet villages far from mainstream tourism.',
-  'Sangli': 'Sangli district borders the Sahyadri tiger reserve and holds dense forests, national parks, and biodiversity hotspots.',
-  'Amravati': 'Vidarbha\'s only hill station and Maharashtra\'s coffee country — Amravati hides wild forests and colonial-era retreats.',
-  'Nandurbar': 'Remote hill stations, tribal culture, and untouched sal forests make Nandurbar one of Maharashtra\'s most overlooked districts.',
-  'Sindhudurg': 'Deep within the Western Ghats, Sindhudurg holds extraordinary biodiversity, endemic species, and cascading waterfalls.',
-  'Satara': 'Satara district holds mountain passes, waterfalls, and lakes framed by Maharashtra\'s highest peaks.'
+const PLACE_TYPE_ICONS = {
+  'EXPERIENCE': 'Experience', 'HERITAGE_SITE': 'Heritage', 'NATURE_SITE': 'Nature',
+  'TRAIL': 'Trail', 'VIEWPOINT': 'Viewpoint', 'VILLAGE': 'Village',
+  'EVENT': 'Event', 'PLACE': 'Place', 'default': 'Destination'
 };
 
 // ============================================
@@ -46,15 +31,14 @@ const CITY_DESCRIPTIONS = {
 
 document.addEventListener('DOMContentLoaded', async () => {
   initHeader();
-  allSpots = await loadSpots();
+  const loaded = await loadSpots();
+  allSpots = loaded.filter(spot => !isSpotRemoved(spot));
   computeGemScores();
   initCarousel();
   initAuthenticityImages();
   initCityCards();
   initSearchOverlay();
-  initOfflineDetection();
   initRouting();
-  registerServiceWorker();
 });
 
 // ============================================
@@ -114,10 +98,6 @@ function showBreadcrumb(items) {
   }).join('');
 }
 
-function hideBreadcrumb() {
-  document.getElementById('breadcrumbBar').style.display = 'none';
-}
-
 // ============================================
 // HEADER
 // ============================================
@@ -149,7 +129,7 @@ function closeMobileNav() {
 }
 
 // ============================================
-// SEARCH OVERLAY
+// SEARCH
 // ============================================
 
 function toggleSearch() {
@@ -174,7 +154,10 @@ function handleGlobalSearch(query) {
   if (!query.trim()) { container.innerHTML = ''; return; }
   const q = query.toLowerCase();
   const results = allSpots.filter(s => {
-    const haystack = (s.spot_name + ' ' + s.district + ' ' + s.category + ' ' + s.tags + ' ' + s.brief_description).toLowerCase();
+    const haystack = (
+      s.spot_name + ' ' + s.district + ' ' + s.region + ' ' + s.category +
+      s.recommendation_tags + ' ' + s.short_description + ' ' + s.experience_type
+    ).toLowerCase();
     return haystack.includes(q);
   });
   if (results.length === 0) {
@@ -184,7 +167,7 @@ function handleGlobalSearch(query) {
   container.innerHTML = results.map(s => `
     <div class="search-result-item" onclick="navigateTo('place/${encodeURIComponent(s.spot_name)}'); toggleSearch();">
       <span class="search-result-name">${s.spot_name}</span>
-      <span class="search-result-district">${s.district}</span>
+      <span class="search-result-district">${s.region || s.district}</span>
     </div>
   `).join('');
 }
@@ -194,18 +177,31 @@ function handleGlobalSearch(query) {
 // ============================================
 
 function computeGemScores() {
-  const rawScores = allSpots.map(spot => {
-    const rating = parseFloat(spot.avg_rating) || 0;
-    const reviews = parseInt(spot.review_count) || 0;
-    return rating / Math.log(reviews + 1);
+  allSpots.forEach(spot => {
+    const csvScore = parseInt(spot.hidden_gem_score);
+    if (!isNaN(csvScore)) {
+      spot._score = csvScore;
+    } else {
+      const rating = parseFloat(spot.experience_score) || 0;
+      const reviews = parseInt(spot.verification_confidence) || 1;
+      spot._score = Math.round((rating / Math.log(reviews + 1)) * 10);
+    }
   });
-  const max = Math.max(...rawScores);
-  const min = Math.min(...rawScores);
+  const scores = allSpots.map(s => s._score);
+  const max = Math.max(...scores);
+  const min = Math.min(...scores);
   const range = max - min || 1;
-  allSpots.forEach((spot, i) => {
-    spot._raw = rawScores[i];
-    spot._score = Math.round(((rawScores[i] - min) / range) * 100);
+  allSpots.forEach(spot => {
+    spot._normalized = Math.round(((spot._score - min) / range) * 100);
   });
+}
+
+function getTags(spot) {
+  return (spot.recommendation_tags || '').split('|').map(t => t.trim()).filter(Boolean);
+}
+
+function getDisplayCategory(spot) {
+  return spot.category || spot.experience_type || 'Destination';
 }
 
 // ============================================
@@ -214,21 +210,54 @@ function computeGemScores() {
 
 function initCarousel() {
   const track = document.getElementById('carouselTrack');
-  if (allSpots.length === 0) return;
-  track.innerHTML = allSpots.map((spot, i) => `
+  carouselSpots = allSpots.filter(spot => getSpotImage(spot));
+  if (carouselSpots.length === 0) {
+    track.innerHTML = '<div class="carousel-slide active"><div class="carousel-placeholder"></div></div>';
+    return;
+  }
+  track.innerHTML = carouselSpots.map((spot, i) => `
     <div class="carousel-slide ${i === 0 ? 'active' : ''}">
-      <img src="${spot.img_path || ''}" alt="${spot.spot_name}" onerror="this.style.display='none'">
+      <img src="${getSpotImage(spot)}" alt="${spot.spot_name}" loading="lazy">
     </div>
   `).join('');
   updateCaption();
   startCarousel();
 }
 
+const REMOVED_DESTINATIONS = [
+  'mahabaleshwar', 'vasota fort', 'tikona', 'trimbakeshwar mahadev temple',
+  'kondane caves', 'koyna wildlife sanctuary'
+];
+
+const REMOVED_REGIONS = ['mahabaleshwar'];
+
+function isSpotRemoved(spot) {
+  const name = (spot.spot_name || '').toLowerCase();
+  const region = (spot.region || '').toLowerCase();
+  if (REMOVED_REGIONS.includes(region)) return true;
+  return REMOVED_DESTINATIONS.some(d => name.includes(d));
+}
+
+function getSpotImages(spot) {
+  const imgs = [];
+  if (spot.img1 && spot.img1.trim()) imgs.push(spot.img1.trim());
+  if (spot.img2 && spot.img2.trim()) imgs.push(spot.img2.trim());
+  return imgs;
+}
+
+function getSpotImage(spot) {
+  const imgs = getSpotImages(spot);
+  if (imgs.length > 0) return imgs[0];
+  return '';
+}
+
 function updateCaption() {
-  const spot = allSpots[currentSlide];
+  const spot = carouselSpots[currentSlide];
   if (!spot) return;
-  document.getElementById('carouselCaption').textContent = `${spot.spot_name} — ${spot.district}, Maharashtra`;
-  document.getElementById('carouselProgress').style.width = (((currentSlide + 1) / allSpots.length) * 100) + '%';
+  document.getElementById('carouselCaption').textContent =
+    `${spot.spot_name} — ${spot.region || spot.district}, Maharashtra`;
+  document.getElementById('carouselProgress').style.width =
+    (((currentSlide + 1) / carouselSpots.length) * 100) + '%';
 }
 
 function goToSlide(index) {
@@ -237,8 +266,8 @@ function goToSlide(index) {
   updateCaption();
 }
 
-function nextSlide() { goToSlide((currentSlide + 1) % allSpots.length); resetCarouselTimer(); }
-function prevSlide() { goToSlide((currentSlide - 1 + allSpots.length) % allSpots.length); resetCarouselTimer(); }
+function nextSlide() { goToSlide((currentSlide + 1) % carouselSpots.length); resetCarouselTimer(); }
+function prevSlide() { goToSlide((currentSlide - 1 + carouselSpots.length) % carouselSpots.length); resetCarouselTimer(); }
 function startCarousel() { carouselTimer = setInterval(nextSlide, 5000); }
 function resetCarouselTimer() { clearInterval(carouselTimer); startCarousel(); }
 
@@ -247,10 +276,16 @@ function resetCarouselTimer() { clearInterval(carouselTimer); startCarousel(); }
 // ============================================
 
 function initAuthenticityImages() {
-  const spots = allSpots.slice(0, 3);
-  if (spots[0]) document.getElementById('authImg1').style.backgroundImage = `url(${spots[0].img_path})`;
-  if (spots[1]) document.getElementById('authImg2').style.backgroundImage = `url(${spots[1].img_path})`;
-  if (spots[2]) document.getElementById('authImg3').style.backgroundImage = `url(${spots[2].img_path})`;
+  const spots = allSpots.filter(s => getSpotImage(s)).slice(0, 3);
+  const els = ['authImg1', 'authImg2', 'authImg3'];
+  els.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (spots[i]) {
+      el.style.backgroundImage = `url(${getSpotImage(spots[i])})`;
+    } else {
+      el.classList.add('auth-img-placeholder');
+    }
+  });
 }
 
 // ============================================
@@ -259,26 +294,28 @@ function initAuthenticityImages() {
 
 function initCityCards() {
   const track = document.getElementById('citiesTrack');
-  const districtMap = {};
+  const regionMap = {};
   allSpots.forEach(spot => {
-    if (!districtMap[spot.district]) districtMap[spot.district] = [];
-    districtMap[spot.district].push(spot);
+    const r = spot.region || spot.district || 'Unknown';
+    if (!regionMap[r]) regionMap[r] = [];
+    regionMap[r].push(spot);
   });
-  const cities = Object.entries(districtMap).sort((a, b) => b[1].length - a[1].length);
-  track.innerHTML = cities.map(([district, spots]) => {
-    const img = spots[0] ? spots[0].img_path : '';
+  const cities = Object.entries(regionMap).sort((a, b) => b[1].length - a[1].length);
+  track.innerHTML = cities.map(([region, spots]) => {
+    const img = getSpotImage(spots[0]);
+    const imgStyle = img ? `background-image:url('${img}')` : '';
+    const imgClass = img ? 'city-card-image' : 'city-card-image city-card-image-placeholder';
     return `
-      <div class="city-card" onclick="navigateTo('city/${encodeURIComponent(district)}')">
-        <div class="city-card-image" style="background-image:url('${img}')">
-          <div class="city-card-overlay"></div>
-        </div>
-        <div class="city-card-info">
-          <div class="city-card-name">${district}</div>
-          <div class="city-card-count">${spots.length} hidden ${spots.length === 1 ? 'gem' : 'gems'}</div>
-        </div>
+    <div class="city-card" onclick="navigateTo('city/${encodeURIComponent(region)}')">
+      <div class="${imgClass}" style="${imgStyle}">
+        <div class="city-card-overlay"></div>
       </div>
-    `;
-  }).join('');
+      <div class="city-card-info">
+        <div class="city-card-name">${region}</div>
+        <div class="city-card-count">${spots.length} hidden ${spots.length === 1 ? 'gem' : 'gems'}</div>
+      </div>
+    </div>
+  `; }).join('');
 }
 
 function scrollCities(dir) {
@@ -286,7 +323,7 @@ function scrollCities(dir) {
 }
 
 // ============================================
-// TAG-BASED DISCOVERY
+// TAG DISCOVERY
 // ============================================
 
 function toggleTag(btn) {
@@ -299,19 +336,18 @@ function toggleTag(btn) {
 
 function discoverByFeeling() {
   if (selectedTags.size === 0) return;
-  const label = [...selectedTags].map(t => TAG_LABELS[t] || t).join(' + ');
+  const label = [...selectedTags].join(' + ');
   navigateTo('explore/' + encodeURIComponent(label));
 }
 
 function showTagResults(title) {
-  const container = document.getElementById('tagResultsPage');
   document.getElementById('tagResultsTitle').textContent = title;
-  document.getElementById('tagResultsDesc').textContent = `Places matching your interests from the Hidden Gems dataset.`;
+  document.getElementById('tagResultsDesc').textContent = 'Places matching your interests from the Hidden Gems dataset.';
 
   const spots = allSpots.filter(spot => {
-    const spotTags = spot.tags.split(',').map(t => t.trim().toLowerCase());
-    return [...selectedTags].some(t => spotTags.includes(t));
-  }).sort((a, b) => b._score - a._score);
+    const tags = getTags(spot).map(t => t.toLowerCase());
+    return [...selectedTags].some(t => tags.includes(t.toLowerCase()));
+  }).sort((a, b) => b._normalized - a._normalized);
 
   const grid = document.getElementById('tagResultsGrid');
   if (spots.length === 0) {
@@ -324,20 +360,26 @@ function showTagResults(title) {
   document.getElementById('homeSections').style.display = 'none';
   document.getElementById('cityPage').style.display = 'none';
   document.getElementById('placePage').style.display = 'none';
-  container.style.display = '';
+  document.getElementById('tagResultsPage').style.display = '';
   document.title = `${title} — Hidden Gems`;
   window.scrollTo(0, 0);
+}
+
+function selectTagAndNavigate(tag) {
+  selectedTags.clear();
+  selectedTags.add(tag);
+  navigateTo('explore/' + encodeURIComponent(tag));
 }
 
 // ============================================
 // CITY PAGE
 // ============================================
 
-function showCityPage(district) {
-  const spots = allSpots.filter(s => s.district === district);
+function showCityPage(region) {
+  const spots = allSpots.filter(s => (s.region || s.district) === region);
   if (spots.length === 0) { showHomePage(); return; }
 
-  currentCity = district;
+  currentCity = region;
   currentPage = 'city';
 
   document.getElementById('homeSections').style.display = 'none';
@@ -347,73 +389,69 @@ function showCityPage(district) {
   const page = document.getElementById('cityPage');
   page.style.display = '';
 
-  // Hero
-  const heroImg = spots[0].img_path || '';
-  document.getElementById('cityHeroImg').src = heroImg;
-  document.getElementById('cityHeroImg').onerror = function() { this.style.display = 'none'; };
+  const heroImg = getSpotImage(spots[0]);
+  const cityHeroImg = document.getElementById('cityHeroImg');
+  if (heroImg) {
+    cityHeroImg.src = heroImg;
+    cityHeroImg.style.display = '';
+  } else {
+    cityHeroImg.style.display = 'none';
+  }
   document.getElementById('cityEyebrow').textContent = 'MAHARASHTRA';
-  document.getElementById('cityTitle').textContent = district;
+  document.getElementById('cityTitle').textContent = region;
   document.getElementById('citySubtitle').textContent = 'Discover the places beyond the usual recommendations.';
 
-  // Intro
-  const desc = CITY_DESCRIPTIONS[district] || `Exploring the hidden gems of ${district} district — places that are genuinely worth visiting but relatively unknown.`;
-  document.getElementById('cityIntro').innerHTML = `<p>${desc}</p>`;
+  document.getElementById('cityIntro').innerHTML =
+    `<p>Exploring the hidden gems of ${region} — places that are genuinely worth visiting but relatively unknown to mainstream tourism.</p>`;
 
-  // Gems header
-  document.getElementById('cityGemsTitle').textContent = `Hidden Gems in ${district}`;
-  document.getElementById('cityGemsDesc').textContent = `${spots.length} verified ${spots.length === 1 ? 'place' : 'places'} documented by real experiences.`;
+  document.getElementById('cityGemsTitle').textContent = `Hidden Gems in ${region}`;
+  document.getElementById('cityGemsDesc').textContent =
+    `${spots.length} verified ${spots.length === 1 ? 'place' : 'places'} documented by real experiences.`;
 
   // Tags filter
   const allTags = new Set();
-  spots.forEach(s => s.tags.split(',').forEach(t => allTags.add(t.trim().toLowerCase())));
+  spots.forEach(s => getTags(s).forEach(t => allTags.add(t.toLowerCase())));
   const tagList = document.getElementById('cityTagList');
   tagList.innerHTML = '';
   allTags.forEach(tag => {
     const btn = document.createElement('button');
     btn.className = 'city-tag-btn';
     btn.dataset.tag = tag;
-    btn.textContent = TAG_LABELS[tag] || tag;
-    btn.onclick = () => {
-      btn.classList.toggle('active');
-      filterCityGems();
-    };
+    btn.textContent = tag.charAt(0).toUpperCase() + tag.slice(1);
+    btn.onclick = () => { btn.classList.toggle('active'); filterCityGems(); };
     tagList.appendChild(btn);
   });
 
-  // Render gems
   renderCityGems(spots);
 
-  // Breadcrumb
   showBreadcrumb([
     { label: 'Maharashtra', href: '#' },
-    { label: district, href: `#city/${encodeURIComponent(district)}` }
+    { label: region, href: `#city/${encodeURIComponent(region)}` }
   ]);
 
-  document.title = `${district} — Hidden Gems`;
+  document.title = `${region} — Hidden Gems`;
   window.scrollTo(0, 0);
 }
 
 function renderCityGems(spots) {
-  const grid = document.getElementById('cityGemsGrid');
-  grid.innerHTML = spots.map(spot => createCityGemCard(spot)).join('');
+  document.getElementById('cityGemsGrid').innerHTML =
+    spots.map(spot => createCityGemCard(spot)).join('');
 }
 
 function createCityGemCard(spot) {
-  const imgHTML = spot.img_path
-    ? `<img src="${spot.img_path}" alt="${spot.spot_name}" loading="lazy" onerror="this.style.display='none'">`
-    : '';
-  const tags = spot.tags.split(',').map(t => t.trim()).slice(0, 3);
+  const tags = getTags(spot).slice(0, 3);
+  const img = getSpotImage(spot);
+  const imgSection = img
+    ? `<div class="city-gem-image"><img src="${img}" alt="${spot.spot_name}" loading="lazy"><span class="gem-score-badge">${spot._normalized}</span></div>`
+    : `<div class="city-gem-image city-gem-image-placeholder"><span class="gem-score-badge">${spot._normalized}</span></div>`;
   return `
     <div class="city-gem-card" onclick="navigateTo('place/${encodeURIComponent(spot.spot_name)}')">
-      <div class="city-gem-image">
-        ${imgHTML}
-        <span class="gem-score-badge">${spot._score}</span>
-      </div>
+      ${imgSection}
       <h3 class="city-gem-name">${spot.spot_name}</h3>
-      <p class="city-gem-district">${spot.district}, Maharashtra</p>
-      <p class="city-gem-desc">${spot.brief_description}</p>
+      <p class="city-gem-district">${spot.region || spot.district}, Maharashtra</p>
+      <p class="city-gem-desc">${spot.short_description || ''}</p>
       <div class="city-gem-tags">
-        ${tags.map(t => `<span class="city-gem-tag">${TAG_LABELS[t] || t}</span>`).join('')}
+        ${tags.map(t => `<span class="city-gem-tag">${t}</span>`).join('')}
       </div>
     </div>
   `;
@@ -421,11 +459,11 @@ function createCityGemCard(spot) {
 
 function filterCityGems() {
   const activeTags = [...document.querySelectorAll('.city-tag-btn.active')].map(b => b.dataset.tag);
-  let spots = allSpots.filter(s => s.district === currentCity);
+  let spots = allSpots.filter(s => (s.region || s.district) === currentCity);
   if (activeTags.length > 0) {
     spots = spots.filter(spot => {
-      const spotTags = spot.tags.split(',').map(t => t.trim().toLowerCase());
-      return activeTags.some(t => spotTags.includes(t));
+      const tags = getTags(spot).map(t => t.toLowerCase());
+      return activeTags.some(t => tags.includes(t));
     });
   }
   renderCityGems(spots);
@@ -450,50 +488,131 @@ function showPlacePage(name) {
   page.style.display = '';
 
   // Hero
-  document.getElementById('placeHeroImg').src = spot.img_path || '';
-  document.getElementById('placeHeroImg').onerror = function() { this.style.display = 'none'; };
-  document.getElementById('placeCategory').textContent = CATEGORY_ICONS[spot.category] || spot.category;
+  const placeImg = getSpotImage(spot);
+  const placeHeroImg = document.getElementById('placeHeroImg');
+  if (placeImg) {
+    placeHeroImg.src = placeImg;
+    placeHeroImg.style.display = '';
+  } else {
+    placeHeroImg.style.display = 'none';
+  }
+  document.getElementById('placeCategory').textContent =
+    spot.experience_type || spot.category || PLACE_TYPE_ICONS[spot.place_type] || 'Destination';
   document.getElementById('placeTitle').textContent = spot.spot_name;
-  document.getElementById('placeLocation').textContent = `${spot.district}, Maharashtra`;
+  document.getElementById('placeLocation').textContent =
+    `${spot.region || spot.district}${spot.nearest_city ? ' — near ' + spot.nearest_city : ''}, Maharashtra`;
 
   // Gallery
   renderPlaceGallery(spot);
 
   // Tags
-  const tags = spot.tags.split(',').map(t => t.trim());
+  const tags = getTags(spot);
   document.getElementById('placeTags').innerHTML = tags.map(t =>
-    `<a class="place-tag" href="#explore/${encodeURIComponent(TAG_LABELS[t] || t)}" onclick="selectTagAndNavigate('${t}'); return false;">${TAG_LABELS[t] || t}</a>`
+    `<a class="place-tag" href="#explore/${encodeURIComponent(t)}" onclick="selectTagAndNavigate('${t.replace(/'/g, "\\'")}'); return false;">${t}</a>`
   ).join('');
 
   // Description
-  document.getElementById('placeDescription').textContent = spot.brief_description;
+  document.getElementById('placeDescription').textContent =
+    spot.short_description || 'No description available.';
 
   // Why visit
   document.getElementById('placeWhyVisit').textContent =
-    `${spot.spot_name} is a genuine hidden gem — a place with a ${spot.avg_rating} rating from ${spot.review_count} visitors, yet relatively unknown to mainstream tourism. Its Discovery Score of ${spot._score} confirms it as a place worth finding.`;
+    spot.why_visit || spot.hidden_gem_reason || 'This is a verified hidden gem worth discovering.';
+
+  // Local tip
+  const tipEl = document.getElementById('placeLocalTip');
+  if (spot.local_tip) {
+    tipEl.parentElement.style.display = '';
+    tipEl.textContent = spot.local_tip;
+  } else {
+    tipEl.parentElement.style.display = 'none';
+  }
 
   // Our experience
   document.getElementById('placeExperience').textContent =
-    `We visited ${spot.spot_name} as part of our effort to document Maharashtra's overlooked destinations. The experience confirmed what the data suggests — this is a place that deserves more attention than it currently receives.`;
+    spot.verification_notes || `We visited ${spot.spot_name} as part of our effort to document Maharashtra's overlooked destinations.`;
 
   // Score
-  document.getElementById('placeDetailRating').textContent = spot.avg_rating;
-  document.getElementById('placeDetailReviews').textContent = spot.review_count;
-  document.getElementById('placeDetailRaw').textContent = spot._raw.toFixed(3);
-  document.getElementById('placeDetailNormalized').textContent = spot._score;
-  document.getElementById('sidebarScore').textContent = spot._score;
+  document.getElementById('placeDetailRating').textContent = spot.experience_score || '—';
+  document.getElementById('placeDetailReviews').textContent = spot.verification_confidence || '—';
+  document.getElementById('placeDetailRaw').textContent = spot._score;
+  document.getElementById('placeDetailNormalized').textContent = spot._normalized;
+  document.getElementById('sidebarScore').textContent = spot._normalized;
 
   // Map
-  document.getElementById('placeDirections').href = spot.map_link;
-  setTimeout(() => initPlaceMap(spot), 200);
+  if (spot.latitude && spot.longitude && spot.latitude !== 'NULL' && spot.longitude !== 'NULL') {
+    document.getElementById('placeMapSection').style.display = '';
+    document.getElementById('placeDirections').href = spot.map_link ||
+      `https://www.google.com/maps/search/?api=1&query=${spot.latitude},${spot.longitude}`;
+    setTimeout(() => initPlaceMap(spot), 200);
+  } else {
+    document.getElementById('placeMapSection').style.display = 'none';
+  }
 
   // Practical info
-  document.getElementById('placePractical').innerHTML = `
-    <div class="sidebar-info-row"><span class="sidebar-info-label">District</span><span class="sidebar-info-value">${spot.district}</span></div>
-    <div class="sidebar-info-row"><span class="sidebar-info-label">Best time</span><span class="sidebar-info-value">${spot.best_months}</span></div>
-    <div class="sidebar-info-row"><span class="sidebar-info-label">Rating</span><span class="sidebar-info-value">${spot.avg_rating} / 5</span></div>
-    <div class="sidebar-info-row"><span class="sidebar-info-label">Reviews</span><span class="sidebar-info-value">${spot.review_count}</span></div>
-  `;
+  const practical = document.getElementById('placePractical');
+  const infoRows = [
+    ['Region', spot.region],
+    ['District', spot.district],
+    ['Nearest city', spot.nearest_city],
+    ['Best season', spot.best_season || spot.best_months],
+    ['Best time of day', spot.best_time_of_day],
+    ['Duration', spot.estimated_visit_duration],
+    ['Entry fee', spot.entry_fee],
+    ['Accessibility', spot.accessibility_status || spot.accessibility],
+    ['Safety', spot.safety_level],
+    ['Crowd level', spot.crowd_level],
+    ['Popularity', spot.popularity_level],
+    ['Family friendly', spot.family_friendly],
+    ['Solo friendly', spot.solo_friendly],
+  ].filter(([_, val]) => val && val !== 'NULL' && val !== 'Unknown');
+
+  practical.innerHTML = infoRows.map(([label, val]) =>
+    `<div class="sidebar-info-row"><span class="sidebar-info-label">${label}</span><span class="sidebar-info-value">${val}</span></div>`
+  ).join('');
+
+  // Safety note
+  const safetyEl = document.getElementById('placeSafetyNote');
+  if (spot.safety_note && spot.safety_note !== 'NULL') {
+    safetyEl.parentElement.style.display = '';
+    safetyEl.textContent = spot.safety_note;
+  } else {
+    safetyEl.parentElement.style.display = 'none';
+  }
+
+  // Events
+  const eventsEl = document.getElementById('placeEvents');
+  if (spot.place_type === 'EVENT') {
+    eventsEl.innerHTML = `
+      <div class="place-event-card">
+        <h4>${spot.spot_name}</h4>
+        <p>${spot.short_description || ''}</p>
+        <span class="event-season">${spot.best_months || spot.best_season || ''}</span>
+      </div>
+    `;
+  } else {
+    eventsEl.innerHTML = '<div class="place-empty-state"><p>Local events will appear here as we document them.</p></div>';
+  }
+
+  // Sources
+  const sourcesEl = document.getElementById('placeSources');
+  const sources = [];
+  if (spot.source_1_name && spot.source_1_url && spot.source_1_url !== 'NULL') {
+    sources.push({ name: spot.source_1_name, url: spot.source_1_url });
+  }
+  if (spot.source_2_name && spot.source_2_url && spot.source_2_url !== 'NULL') {
+    sources.push({ name: spot.source_2_name, url: spot.source_2_url });
+  }
+  if (spot.source_3_name && spot.source_3_url && spot.source_3_url !== 'NULL') {
+    sources.push({ name: spot.source_3_name, url: spot.source_3_url });
+  }
+  if (sources.length > 0) {
+    sourcesEl.innerHTML = sources.map(s =>
+      `<a href="${s.url}" target="_blank" rel="noopener" class="source-link">${s.name}</a>`
+    ).join('');
+  } else {
+    sourcesEl.innerHTML = '<span class="source-link muted">No sources available</span>';
+  }
 
   // Related
   renderRelated(spot);
@@ -501,7 +620,7 @@ function showPlacePage(name) {
   // Breadcrumb
   showBreadcrumb([
     { label: 'Maharashtra', href: '#' },
-    { label: spot.district, href: `#city/${encodeURIComponent(spot.district)}` },
+    { label: spot.region || spot.district, href: `#city/${encodeURIComponent(spot.region || spot.district)}` },
     { label: spot.spot_name, href: `#place/${encodeURIComponent(spot.spot_name)}` }
   ]);
 
@@ -511,13 +630,17 @@ function showPlacePage(name) {
 
 function renderPlaceGallery(spot) {
   const gallery = document.getElementById('placeGallery');
-  if (!spot.img_path) { gallery.style.display = 'none'; return; }
+  const images = getSpotImages(spot);
+  if (images.length === 0) {
+    gallery.style.display = 'none';
+    return;
+  }
   gallery.style.display = '';
-  gallery.innerHTML = `
-    <div class="gallery-item hero-thumb" onclick="openLightbox('${spot.img_path}')">
-      <img src="${spot.img_path}" alt="${spot.spot_name}" onerror="this.parentElement.style.display='none'">
+  gallery.innerHTML = images.map((img, i) => `
+    <div class="gallery-item${i === 0 ? ' hero-thumb' : ''}" onclick="openLightbox('${img}')">
+      <img src="${img}" alt="${spot.spot_name}" loading="lazy">
     </div>
-  `;
+  `).join('');
 }
 
 function openLightbox(src) {
@@ -539,7 +662,7 @@ function initPlaceMap(spot) {
   if (isNaN(lat) || isNaN(lng)) return;
   const container = document.getElementById('placeMap');
   if (leafletMap) leafletMap.remove();
-  leafletMap = L.map(container, { scrollWheelZoom: false }).setView([lat, lng], 10);
+  leafletMap = L.map(container, { scrollWheelZoom: false }).setView([lat, lng], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap', maxZoom: 18
   }).addTo(leafletMap);
@@ -548,39 +671,37 @@ function initPlaceMap(spot) {
     html: '<div style="width:24px;height:24px;background:#b8530a;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3)"></div>',
     iconSize: [24, 24], iconAnchor: [12, 12]
   });
-  L.marker([lat, lng], { icon }).addTo(leafletMap).bindPopup(`<strong>${spot.spot_name}</strong><br>${spot.district}`);
+  L.marker([lat, lng], { icon }).addTo(leafletMap)
+    .bindPopup(`<strong>${spot.spot_name}</strong><br>${spot.region || spot.district}`);
   setTimeout(() => leafletMap.invalidateSize(), 250);
 }
 
 function renderRelated(spot) {
   const grid = document.getElementById('relatedGrid');
+  const spotTags = getTags(spot).map(t => t.toLowerCase());
   const related = allSpots
     .filter(s => s.spot_name !== spot.spot_name)
     .map(s => {
-      const sTags = s.tags.split(',').map(t => t.trim().toLowerCase());
-      const pTags = spot.tags.split(',').map(t => t.trim().toLowerCase());
-      const overlap = sTags.filter(t => pTags.includes(t)).length;
-      const sameDistrict = s.district === spot.district ? 2 : 0;
-      return { spot: s, score: overlap + sameDistrict };
+      const sTags = getTags(s).map(t => t.toLowerCase());
+      const overlap = sTags.filter(t => spotTags.includes(t)).length;
+      const sameRegion = (s.region === spot.region) ? 2 : 0;
+      return { spot: s, score: overlap + sameRegion };
     })
-    .sort((a, b) => b.score - a.score || b.spot._score - a.spot._score)
+    .sort((a, b) => b.score - a.score || b.spot._normalized - a.spot._normalized)
     .slice(0, 4);
 
-  grid.innerHTML = related.map(r => `
+  grid.innerHTML = related.map(r => {
+    const img = getSpotImage(r.spot);
+    const imgSection = img
+      ? `<div class="related-card-image"><img src="${img}" alt="${r.spot.spot_name}" loading="lazy"></div>`
+      : `<div class="related-card-image related-card-image-placeholder"></div>`;
+    return `
     <div class="related-card" onclick="navigateTo('place/${encodeURIComponent(r.spot.spot_name)}')">
-      <div class="related-card-image">
-        <img src="${r.spot.img_path || ''}" alt="${r.spot.spot_name}" loading="lazy" onerror="this.style.display='none'">
-      </div>
+      ${imgSection}
       <h3 class="related-card-name">${r.spot.spot_name}</h3>
-      <p class="related-card-district">${r.spot.district}, Maharashtra</p>
+      <p class="related-card-district">${r.spot.region || r.spot.district}, Maharashtra</p>
     </div>
-  `).join('');
-}
-
-function selectTagAndNavigate(tag) {
-  selectedTags.clear();
-  selectedTags.add(tag);
-  navigateTo('explore/' + encodeURIComponent(TAG_LABELS[tag] || tag));
+  `; }).join('');
 }
 
 // ============================================
@@ -616,12 +737,10 @@ function submitExperience(e) {
     status: 'pending'
   };
 
-  // Store in localStorage (no backend)
   const submissions = JSON.parse(localStorage.getItem('hg_submissions') || '[]');
   submissions.push(data);
   localStorage.setItem('hg_submissions', JSON.stringify(submissions));
 
-  // Show confirmation
   const form = document.getElementById('experienceForm');
   form.innerHTML = `
     <div style="text-align:center;padding:40px 20px;">
@@ -636,19 +755,7 @@ function submitExperience(e) {
 }
 
 // ============================================
-// OFFLINE
-// ============================================
-
-function initOfflineDetection() {
-  const banner = document.getElementById('offlineBanner');
-  function update() { banner.style.display = navigator.onLine ? 'none' : 'flex'; }
-  window.addEventListener('online', update);
-  window.addEventListener('offline', update);
-  update();
-}
-
-// ============================================
-// SERVICE WORKER
+// SERVICE WORKER (caching for performance)
 // ============================================
 
 function registerServiceWorker() {
